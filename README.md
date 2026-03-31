@@ -3,7 +3,7 @@
 How to implement a video-on-demand workflow on AWS leveraging AWS Step Functions,
 AWS Elemental MediaConvert, and AWS Elemental MediaPackage.
 Source code for [Video on Demand on AWS][vod-landing] solution.
-Origin source code [Vide on Demand on AWS][vod-reference].
+Origin source code [Github Video on Demand on AWS][vod-reference].
 
 ## On this Page
 - [Video on Demand on AWS](#video-on-demand-on-aws)
