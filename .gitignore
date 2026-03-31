@@ -1,0 +1,34 @@
+# compiled output
+**/dist
+**/global-s3-assets
+**/regional-s3-assets
+**/open-source
+**/.zip
+/build
+
+# python output
+**/__pycache__
+**/pytests
+**/*.egg-info
+**/*.pyc
+**/pypackage
+
+# dependencies
+**/node_modules
+
+# misc
+**/npm-debug.log
+**/.vscode/settings.json
+codescan-funcs.sh
+codescan-postbuild-default.sh
+codescan-prebuild-default.sh
+codescan-unified-default.sh
+
+# System Files
+**/.DS_Store
+**/.vscode
+
+# test coverage files
+**/source/test
+**source/**/.coverage
+**source/**/coverage
