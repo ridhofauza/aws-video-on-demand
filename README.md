@@ -3,6 +3,7 @@
 How to implement a video-on-demand workflow on AWS leveraging AWS Step Functions,
 AWS Elemental MediaConvert, and AWS Elemental MediaPackage.
 Source code for [Video on Demand on AWS][vod-landing] solution.
+Origin source code [Vide on Demand on AWS][vod-reference].
 
 ## On this Page
 - [Video on Demand on AWS](#video-on-demand-on-aws)
@@ -332,5 +333,6 @@ See the License for the specific language governing permissions and limitations 
 
 
 [accelerated-transcoding]:https://docs.aws.amazon.com/mediaconvert/latest/ug/accelerated-transcoding.html
-[vod-landing]:https://aws.amazon.com/solutions/video-on-demand-on-aws/
+[vod-landing]:https://docs.aws.amazon.com/solutions/latest/video-on-demand-on-aws/aws-cloudformation-template.html
 [mediainfo-site]:https://mediaarea.net/en/MediaInfo
+[vod-reference]:https://github.com/aws-solutions-library-samples/video-on-demand-on-aws
