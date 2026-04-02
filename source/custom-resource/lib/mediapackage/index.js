@@ -19,10 +19,58 @@ const DEFAULT_SEGMENT_LENGTH = 6;
 const DEFAULT_PROGRAM_DATETIME_INTERVAL = 60;
 const DEFAULT_MANIFEST_NAME = 'index';
 
-const getHlsParameters = (groupId, configId) => ({
+const getDrmEncryptionHls = (urlApiGatewayDRMProvider, roleArnMediaPackage, resourceId) => ({
+    SpekeKeyProvider: {
+        ResourceId: resourceId,
+        SystemIds: [
+            "94ce86fb-07ff-4f43-adb8-93d2fa968ca2"  // FairPlay
+        ],
+        Url: urlApiGatewayDRMProvider,
+        RoleArn: roleArnMediaPackage
+    }
+});
+
+const getDrmEncryptionDash = (urlApiGatewayDRMProvider, roleArnMediaPackage, resourceId) => ({
+    SpekeKeyProvider: {
+        ResourceId: resourceId,
+        SystemIds: [
+            "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", // Widevine
+            "9a04f079-9840-4286-ab92-e65be0885f95" // PlayReady
+        ],
+        Url: urlApiGatewayDRMProvider,
+        RoleArn: roleArnMediaPackage
+    }
+});
+
+const getDrmEncryptionMss = (urlApiGatewayDRMProvider, roleArnMediaPackage, resourceId) => ({
+    SpekeKeyProvider: {
+        ResourceId: resourceId,
+        SystemIds: [
+            "9a04f079-9840-4286-ab92-e65be0885f95" // PlayReady
+        ],
+        Url: urlApiGatewayDRMProvider,
+        RoleArn: roleArnMediaPackage
+    }
+});
+
+const getDrmEncryptionCmaf = (urlApiGatewayDRMProvider, roleArnMediaPackage, resourceId) => ({
+    SpekeKeyProvider: {
+        ResourceId: resourceId,
+        SystemIds: [
+            "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", // Widevine
+            "9a04f079-9840-4286-ab92-e65be0885f95", // PlayReady
+            "94ce86fb-07ff-4f43-adb8-93d2fa968ca2"  // FairPlay
+        ],
+        Url: urlApiGatewayDRMProvider,
+        RoleArn: roleArnMediaPackage
+    }
+});
+
+const getHlsParameters = (urlApiGatewayDRMProvider, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     HlsPackage: {
+        Encryption: getDrmEncryptionHls(urlApiGatewayDRMProvider, mediaPackageVodRole, configId),
         HlsManifests: [{
             AdMarkers: 'SCTE35_ENHANCED',
             IncludeIframeOnlyStream: false,
@@ -35,10 +83,11 @@ const getHlsParameters = (groupId, configId) => ({
     }
 });
 
-const getDashParameters = (groupId, configId) => ({
+const getDashParameters = (urlApiGatewayDRMProvider, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     DashPackage: {
+        Encryption: getDrmEncryptionDash(urlApiGatewayDRMProvider, mediaPackageVodRole, configId),
         DashManifests: [{
             ManifestName: DEFAULT_MANIFEST_NAME,
             MinBufferTimeSeconds: DEFAULT_SEGMENT_LENGTH * 3,
@@ -48,10 +97,11 @@ const getDashParameters = (groupId, configId) => ({
     }
 });
 
-const getMssParameters = (groupId, configId) => ({
+const getMssParameters = (urlApiGatewayDRMProvider, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     MssPackage: {
+        Encryption: getDrmEncryptionMss(urlApiGatewayDRMProvider, mediaPackageVodRole, configId),
         MssManifests: [{
             ManifestName: DEFAULT_MANIFEST_NAME
         }],
@@ -59,10 +109,11 @@ const getMssParameters = (groupId, configId) => ({
     }
 });
 
-const getCmafParameters = (groupId, configId) => ({
+const getCmafParameters = (urlApiGatewayDRMProvider, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     CmafPackage: {
+        Encryption: getDrmEncryptionCmaf(urlApiGatewayDRMProvider, mediaPackageVodRole, configId),
         HlsManifests: [{
             AdMarkers: 'SCTE35_ENHANCED',
             IncludeIframeOnlyStream: false,
@@ -92,19 +143,19 @@ const create = async (properties) => {
 
         switch (config.toLowerCase()) {
             case 'hls':
-                params = getHlsParameters(packagingGroup.Id, `packaging-config-${randomId}-hls`);
+                params = getHlsParameters(properties.UrlApiGatewayDRMProvider, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-hls`);
                 break;
 
             case 'dash':
-                params = getDashParameters(packagingGroup.Id, `packaging-config-${randomId}-dash`);
+                params = getDashParameters(properties.UrlApiGatewayDRMProvider, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-dash`);
                 break;
 
             case 'mss':
-                params = getMssParameters(packagingGroup.Id, `packaging-config-${randomId}-mss`);
+                params = getMssParameters(properties.UrlApiGatewayDRMProvider, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-mss`);
                 break;
 
             case 'cmaf':
-                params = getCmafParameters(packagingGroup.Id, `packaging-config-${randomId}-cmaf`);
+                params = getCmafParameters(properties.UrlApiGatewayDRMProvider, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-cmaf`);
                 break;
 
             default:

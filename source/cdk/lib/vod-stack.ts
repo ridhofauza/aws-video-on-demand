@@ -28,6 +28,7 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { CloudFrontToS3 } from '@aws-solutions-constructs/aws-cloudfront-s3';
 import { NagSuppressions } from 'cdk-nag';
+import { concatTimestamp } from "./timestampUtils";
 
 export class VideoOnDemand extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -90,6 +91,32 @@ export class VideoOnDemand extends cdk.Stack {
       default: 'PREFERRED',
       allowedValues: ['ENABLED', 'DISABLED', 'PREFERRED']
     });
+    const enableApiGatewayDRM = new cdk.CfnParameter(this, 'EnableApiGatewayDRM', {
+      type: 'String',
+      description: 'Enable API Gateway for DRM Provider',
+      default: 'Yes',
+      allowedValues: ['Yes', 'No']
+    });
+    const urlDRMProvider = new cdk.CfnParameter(this, 'UrlDRMProvider', {
+      type: 'String',
+      description: 'URL DRM provider to get key encryption',
+      allowedPattern: '^https?:\/\/.*'
+    });
+    const tenantIdDRMProvider = new cdk.CfnParameter(this, 'TenantIdDRMProvider', {
+      type: 'String',
+      description: 'Tenant ID DRM provider for authorization'
+    });
+    const keyServiceManagementKeyDRMProvider = new cdk.CfnParameter(this, 'KeyServiceManagementKeyDRMProvider', {
+      type: 'String',
+      description: 'Key Service Management Key DRM provider for authorization'
+    });
+    const spekeVersion = new cdk.CfnParameter(this, 'SpekeVersion', {
+      type: 'String',
+      description: 'Speke Version',
+      default: 'v1',
+      allowedValues: ['v1', 'v2']
+    });
+
     /**
      * Template metadata
      */
@@ -116,6 +143,16 @@ export class VideoOnDemand extends cdk.Stack {
           {
             Label: { default: 'AWS Elemental MediaPackage' },
             Parameters: [enableMediaPackage.logicalId]
+          },
+          {
+            Label: { default: 'AWS API Gateway for DRM Provider' },
+            Parameters: [
+              enableApiGatewayDRM.logicalId,
+              urlDRMProvider.logicalId,
+              tenantIdDRMProvider.logicalId,
+              keyServiceManagementKeyDRMProvider.logicalId,
+              spekeVersion.logicalId
+            ]
           }
         ],
         ParameterLabels: {
@@ -142,6 +179,21 @@ export class VideoOnDemand extends cdk.Stack {
           },
           EnableSqs: {
             default: 'Enable SQS Messaging'
+          },
+          EnableApiGatewayDRM: {
+            default: 'Enable API Gateway DRM'
+          },
+          SpekeVersion: {
+            default: 'Enable Speke V2'
+          },
+          UrlDRMProvider: {
+            default: 'URL DRM Provider'
+          },
+          TenantIdDRMProvider: {
+            default: 'Tenant ID DRM Provider'
+          },
+          KeyServiceManagementKeyDRMProvider: {
+            default: 'Key Service Management Key DRM Provider'
           }
         }
       }
@@ -170,6 +222,12 @@ export class VideoOnDemand extends cdk.Stack {
     });
     const conditionEnableSqs = new cdk.CfnCondition(this, 'EnableSqsCondition', {
       expression: cdk.Fn.conditionEquals(enableSqs.valueAsString, 'Yes')
+    });
+    const conditionEnableApiGatewayDRM = new cdk.CfnCondition(this, 'EnableApiGatewayDRMCondition', {
+      expression: cdk.Fn.conditionEquals(enableApiGatewayDRM.valueAsString, 'Yes')
+    });
+    const conditionEnableSpekeV2 = new cdk.CfnCondition(this, 'EnableSpekeV2Condition', {
+      expression: cdk.Fn.conditionEquals(enableApiGatewayDRM.valueAsString, 'v2')
     });
 
 
@@ -394,6 +452,63 @@ export class VideoOnDemand extends cdk.Stack {
     );
 
     /**
+     * MediaPackageVod role
+     */
+    const mediaPackageVodRole = new iam.Role(this, 'MediaPackageVodRole', {
+      assumedBy: new iam.ServicePrincipal('mediapackage.amazonaws.com')
+    });
+
+    const mediaPackageVodPolicy = new iam.Policy(this, 'MediaPackageVodPolicy', {
+      policyName: `${cdk.Aws.STACK_NAME}-mediapackagevod-policy`,
+      statements: [
+        new iam.PolicyStatement({
+          resources: [
+            destination.bucketArn,
+            `${destination.bucketArn}/*`
+          ],
+          actions: [
+            's3:GetObject',
+            's3:GetBucketLocation',
+            's3:GetBucketRequestPayment'
+          ]
+        }),
+        new iam.PolicyStatement({
+          resources: [
+            `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:*`
+          ],
+          actions: [
+            'execute-api:Invoke',
+            'execute-api:ManageConnections'
+          ]
+        })
+      ]
+    });
+    mediaPackageVodPolicy.attachToRole(mediaPackageVodRole);
+
+    //cfn_nag
+    const cfnMediaPackageVodRole = mediaPackageVodRole.node.findChild('Resource') as iam.CfnRole;
+    cfnMediaPackageVodRole.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W11',
+            reason: '* is required to get objects from S3'
+          }
+        ]
+      }
+    };
+    //cdk_nag
+    NagSuppressions.addResourceSuppressions(
+      mediaPackageVodPolicy,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: '/* required to get/put objects to S3'
+        }
+      ]
+    );
+
+    /**
      * Custom Resource lambda, role, and policy.
      * Creates custom resources
      */
@@ -466,6 +581,14 @@ export class VideoOnDemand extends cdk.Stack {
             'cloudfront:GetDistributionConfig',
             'cloudfront:UpdateDistribution'
           ]
+        }),
+        new iam.PolicyStatement({
+          resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/*`],
+          actions: ['apigateway:*']
+        }),
+        new iam.PolicyStatement({
+          resources: [mediaPackageVodRole.roleArn],
+          actions: ['iam:PassRole']
         })
       ]
     });
@@ -570,6 +693,24 @@ export class VideoOnDemand extends cdk.Stack {
     });
 
     /**
+     * Custom Resource: API Gateway to call DRM Provider
+     */
+    const apiGatewayToDRMProvider = new cdk.CustomResource(this, 'ApiGatewayDRMProvider', {
+      serviceToken: customResourceLambda.functionArn,
+      properties: {
+        Resource: 'ApiGatewayDRMProvider',
+        StackName: cdk.Aws.STACK_NAME,
+        EndpointDRM: urlDRMProvider.valueAsString,
+        TenantIdDRM: tenantIdDRMProvider.valueAsString,
+        KeyServiceManagementKeyDRM: keyServiceManagementKeyDRMProvider.valueAsString,
+        EnableSpekeV2: cdk.Fn.conditionIf(conditionEnableSpekeV2.logicalId, 'true', 'false'),
+        Region: cdk.Aws.REGION,
+        ApiGatewayName: concatTimestamp('DrmProxyApi'),
+        EnableApiGatewayDRM: cdk.Fn.conditionIf(conditionEnableApiGatewayDRM.logicalId, 'true', 'false')
+      }
+    });
+
+    /**
      * Custom Resource: MediaPackage VOD
      */
     const mediaPackageVod = new cdk.CustomResource(this, 'MediaPackageVod', {
@@ -580,7 +721,9 @@ export class VideoOnDemand extends cdk.Stack {
         GroupId: `${cdk.Aws.STACK_NAME}-packaging-group`,
         PackagingConfigurations: 'HLS,DASH,MSS,CMAF',
         DistributionId: distribution.cloudFrontWebDistribution.distributionId,
-        EnableMediaPackage: cdk.Fn.conditionIf(conditionEnableMediaPackage.logicalId, 'true', 'false')
+        EnableMediaPackage: cdk.Fn.conditionIf(conditionEnableMediaPackage.logicalId, 'true', 'false'),
+        MediaPackageVodRole: mediaPackageVodRole.roleArn,
+        UrlApiGatewayDRMProvider: apiGatewayToDRMProvider.getAttString('EndpointApiGatewayUrl')
       }
     });
 
@@ -634,55 +777,6 @@ export class VideoOnDemand extends cdk.Stack {
         }
       ]
     );
-
-    /**
-     * MediaPackageVod role
-     */
-    const mediaPackageVodRole = new iam.Role(this, 'MediaPackageVodRole', {
-      assumedBy: new iam.ServicePrincipal('mediapackage.amazonaws.com')
-    });
-
-    const mediaPackageVodPolicy = new iam.Policy(this, 'MediaPackageVodPolicy', {
-      policyName: `${cdk.Aws.STACK_NAME}-mediapackagevod-policy`,
-      statements: [
-        new iam.PolicyStatement({
-          resources: [
-            destination.bucketArn,
-            `${destination.bucketArn}/*`
-          ],
-          actions: [
-            's3:GetObject',
-            's3:GetBucketLocation',
-            's3:GetBucketRequestPayment'
-          ]
-        })
-      ]
-    });
-    mediaPackageVodPolicy.attachToRole(mediaPackageVodRole);
-
-    //cfn_nag
-    const cfnMediaPackageVodRole = mediaPackageVodRole.node.findChild('Resource') as iam.CfnRole;
-    cfnMediaPackageVodRole.cfnOptions.metadata = {
-      cfn_nag: {
-        rules_to_suppress: [
-          {
-            id: 'W11',
-            reason: '* is required to get objects from S3'
-          }
-        ]
-      }
-    };
-    //cdk_nag
-    NagSuppressions.addResourceSuppressions(
-      mediaPackageVodPolicy,
-      [
-        {
-          id: 'AwsSolutions-IAM5',
-          reason: '/* required to get/put objects to S3'
-        }
-      ]
-    );
-
 
     /**
      * SNS Topic
