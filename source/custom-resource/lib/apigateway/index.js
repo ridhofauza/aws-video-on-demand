@@ -11,22 +11,21 @@ const {
   PutMethodCommand,
   PutIntegrationCommand,
   CreateDeploymentCommand,
-  DeleteRestApiCommand,
   GetRestApisCommand,
+  DeleteRestApiCommand
 } = require("@aws-sdk/client-api-gateway");
 
-const ENDPOINT_RESOURCE = "drm";
-const SPEKE_VERSION_HEADER = "X-Speke-Version";
-const SPEKE_VERSION_VALUE = "2.0";
-const AUTHORIZATION_HEADER = "Authorization";
+const {
+  LambdaClient,
+  AddPermissionCommand
+} = require("@aws-sdk/client-lambda");
 
-// Encode
-const toBase64 = (str) => Buffer.from(str, "utf-8").toString("base64");
+const ENDPOINT_RESOURCE = "speke";
 
 const createEndpointDRMProvider = async (properties) => {
   try {
-    const AUTHORIZATION_VALUE = toBase64(`${properties.TenantIdDRM}:${properties.KeyServiceManagementKeyDRM}`);
     const client = new APIGatewayClient({ region: properties.Region });
+    const lambdaClient = new LambdaClient({ region: properties.Region });
 
     // 1. Create Rest API
     const api = await client.send(new CreateRestApiCommand({
@@ -34,19 +33,19 @@ const createEndpointDRMProvider = async (properties) => {
       description: "Proxy to DRM Provider"
     }));
 
-    const restApiId = api.id;
-    console.log("Rest API ID:", restApiId);
+    const apiId = api.id;
+    console.log("Rest API ID:", apiId);
 
     // 2. Get root resource
     const resources = await client.send(new GetResourcesCommand({
-      restApiId
+      restApiId: apiId
     }));
 
     const rootId = resources.items.find(r => r.path === "/").id;
 
     // 3. Create endpoint resource
     const resource = await client.send(new CreateResourceCommand({
-      restApiId,
+      restApiId: apiId,
       parentId: rootId,
       pathPart: ENDPOINT_RESOURCE
     }));
@@ -55,48 +54,39 @@ const createEndpointDRMProvider = async (properties) => {
 
     // 4. Create POST method
     await client.send(new PutMethodCommand({
-      restApiId,
+      restApiId: apiId,
       resourceId,
       httpMethod: "POST",
       authorizationType: "NONE"
     }));
 
-    // 5. HTTP Proxy Integration to DRM Provider
-    if (properties.EnableSpekeV2 === 'true') {
-      await client.send(new PutIntegrationCommand({
-        restApiId,
-        resourceId,
-        httpMethod: "POST",
-        type: "HTTP_PROXY",
-        integrationHttpMethod: "POST",
-        uri: properties.EndpointDRM,
-        requestParameters: {
-          [`integration.request.header.${SPEKE_VERSION_HEADER}`]: `'${SPEKE_VERSION_VALUE}'`,
-          [`integration.request.header.${AUTHORIZATION_HEADER}`]: `'Basic ${AUTHORIZATION_VALUE}'`,
-        },
-      }));
-    } else {
-      await client.send(new PutIntegrationCommand({
-        restApiId,
-        resourceId,
-        httpMethod: "POST",
-        type: "HTTP_PROXY",
-        integrationHttpMethod: "POST",
-        uri: properties.EndpointDRM,
-        requestParameters: {          
-          [`integration.request.header.${AUTHORIZATION_HEADER}`]: `'Basic ${AUTHORIZATION_VALUE}'`,
-        },
-      }));
-    }
+    // 5. Integration (API Gateway → Lambda Speke Proxy)
+    await client.send(new PutIntegrationCommand({
+      restApiId: apiId,
+      resourceId: resourceId,
+      httpMethod: "POST",
+      type: "AWS_PROXY",
+      integrationHttpMethod: "POST",
+      uri: `arn:aws:apigateway:${properties.Region}:lambda:path/2015-03-31/functions/${properties.LambdaFunctionArn}/invocations`
+    }));
 
-    // 6. Deploy API
+    // 6. Allow API Gateway to invoke Lambda
+    await lambdaClient.send(new AddPermissionCommand({
+      FunctionName: properties.LambdaFunctionName,
+      StatementId: "apigateway-invoke-permission",
+      Action: "lambda:InvokeFunction",
+      Principal: "apigateway.amazonaws.com",
+      SourceArn: `arn:aws:execute-api:${properties.Region}:${properties.AccountId}:${apiId}/*/POST/${ENDPOINT_RESOURCE}`
+    }));
+
+    // 7. Deploy API
     await client.send(new CreateDeploymentCommand({
-      restApiId,
+      restApiId: apiId,
       stageName: "prod"
     }));
 
     console.log("API deployed!");
-    let resultUrl = `https://${restApiId}.execute-api.${properties.Region}.amazonaws.com/prod/${ENDPOINT_RESOURCE}`;
+    const resultUrl = `https://${apiId}.execute-api.${properties.Region}.amazonaws.com/prod/${ENDPOINT_RESOURCE}`;
     console.log(`Endpoint: ${resultUrl}`);
 
     return {

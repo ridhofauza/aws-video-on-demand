@@ -51,6 +51,20 @@ exports.handler = async (event) => {
         console.log(`UPDATE:: ${JSON.stringify(params, null, 2)}`);
         await dynamo.update(params);
 
+        // Get Stored Content Key from DynamoDB
+        if (event.mediaPackageResourceId) {
+            const paramsGetContentKey = {
+                TableName: process.env.DynamoDBTableSpeke,
+                Key: {
+                    resourceId: event.mediaPackageResourceId,
+                }
+            };
+            
+            const responseContentKey = await dynamo.get(paramsGetContentKey);
+            event.contentKey = responseContentKey?.Item?.contentKey ?? null;
+            console.log(`CONTENT_KEY:: ${JSON.stringify(event.contentKey)}`)
+        }
+
         // Get updated data and reconst event data to return
         event.guid = guid;
     } catch (err) {

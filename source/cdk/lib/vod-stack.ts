@@ -102,19 +102,15 @@ export class VideoOnDemand extends cdk.Stack {
       description: 'URL DRM provider to get key encryption',
       allowedPattern: '^https?:\/\/.*'
     });
-    const tenantIdDRMProvider = new cdk.CfnParameter(this, 'TenantIdDRMProvider', {
+    const authDRMProvider = new cdk.CfnParameter(this, 'AuthDRMProvider', {
       type: 'String',
-      description: 'Tenant ID DRM provider for authorization'
-    });
-    const keyServiceManagementKeyDRMProvider = new cdk.CfnParameter(this, 'KeyServiceManagementKeyDRMProvider', {
-      type: 'String',
-      description: 'Key Service Management Key DRM provider for authorization'
+      description: 'Base64 encode of Tenant Id and Key Service Management Key for authorization'
     });
     const spekeVersion = new cdk.CfnParameter(this, 'SpekeVersion', {
       type: 'String',
       description: 'Speke Version',
-      default: 'v1',
-      allowedValues: ['v1', 'v2']
+      default: '1',
+      allowedValues: ['1', '2']
     });
 
     /**
@@ -149,8 +145,7 @@ export class VideoOnDemand extends cdk.Stack {
             Parameters: [
               enableApiGatewayDRM.logicalId,
               urlDRMProvider.logicalId,
-              tenantIdDRMProvider.logicalId,
-              keyServiceManagementKeyDRMProvider.logicalId,
+              authDRMProvider.logicalId,
               spekeVersion.logicalId
             ]
           }
@@ -184,16 +179,13 @@ export class VideoOnDemand extends cdk.Stack {
             default: 'Enable API Gateway DRM'
           },
           SpekeVersion: {
-            default: 'Enable Speke V2'
+            default: 'Speke Version'
           },
           UrlDRMProvider: {
             default: 'URL DRM Provider'
           },
-          TenantIdDRMProvider: {
-            default: 'Tenant ID DRM Provider'
-          },
-          KeyServiceManagementKeyDRMProvider: {
-            default: 'Key Service Management Key DRM Provider'
+          AuthDRMProvider: {
+            default: 'Authorization Key DRM Provider'
           }
         }
       }
@@ -227,9 +219,8 @@ export class VideoOnDemand extends cdk.Stack {
       expression: cdk.Fn.conditionEquals(enableApiGatewayDRM.valueAsString, 'Yes')
     });
     const conditionEnableSpekeV2 = new cdk.CfnCondition(this, 'EnableSpekeV2Condition', {
-      expression: cdk.Fn.conditionEquals(enableApiGatewayDRM.valueAsString, 'v2')
+      expression: cdk.Fn.conditionEquals(spekeVersion.valueAsString, '2')
     });
-
 
     /**
      * Resources
@@ -509,6 +500,118 @@ export class VideoOnDemand extends cdk.Stack {
     );
 
     /**
+     * DynamoDB Table to store key id SPEKE
+     */
+    const dynamoDBTableSpeke = new dynamodb.Table(this, 'DynamoDBTableSpeke', {
+      partitionKey: {
+        name: 'resourceId',
+        type: dynamodb.AttributeType.STRING
+      },
+      tableName: `${cdk.Aws.STACK_NAME}-key`,
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true
+      }
+    });
+
+    const cfnDynamoDBSpeke = dynamoDBTableSpeke.node.findChild('Resource') as dynamodb.CfnTable;
+    cfnDynamoDBSpeke.cfnOptions.deletionPolicy = cdk.CfnDeletionPolicy.RETAIN;
+    cfnDynamoDBSpeke.cfnOptions.updateReplacePolicy = cdk.CfnDeletionPolicy.RETAIN;
+
+    //cfn_nag
+    cfnDynamoDBSpeke.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W74',
+            reason: 'The DynamoDB table is configured to use the default encryption'
+          }
+        ]
+      }
+    };
+
+    /**
+     * Proxy DRM SPEKE Resource lambda, role, and policy.
+     * Creates Proxy DRM SPEKE Resource
+     */
+    const proxyDrmResourceRole = new iam.Role(this, 'ProxyDrmResourceRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com')
+    });
+    const proxyDrmResourcePolicy = new iam.Policy(this, 'ProxyDrmResourcePolicy', {
+      statements: [
+        new iam.PolicyStatement({
+          resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
+          actions: [
+            'logs:CreateLogGroup',
+            'logs:CreateLogStream',
+            'logs:PutLogEvents'
+          ]
+        }),
+        new iam.PolicyStatement({
+          resources: [dynamoDBTableSpeke.tableArn],
+          actions: ['dynamodb:UpdateItem']
+        })
+      ]
+    });
+    proxyDrmResourcePolicy.attachToRole(proxyDrmResourceRole);
+
+    //cfn_nag
+    const cfnProxyDrmResourceRole = proxyDrmResourceRole.node.findChild('Resource') as iam.CfnRole;
+    cfnProxyDrmResourceRole.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W11',
+            reason: '* is required to create CloudWatch logs'
+          }, {
+            id: 'W76',
+            reason: 'All policies are required by the proxy DRM resource.'
+          }
+        ]
+      }
+    };
+    const cfnproxyDrmResourcePolicy = proxyDrmResourcePolicy.node.findChild('Resource') as iam.CfnPolicy;
+    cfnproxyDrmResourcePolicy.cfnOptions.metadata = {
+      cfn_nag: {
+        rules_to_suppress: [
+          {
+            id: 'W12',
+            reason: '* is required to create CloudWatch logs'
+          }
+        ]
+      }
+    };
+    //cdk_nag
+    NagSuppressions.addResourceSuppressions(
+      proxyDrmResourcePolicy,
+      [
+        {
+          id: 'AwsSolutions-IAM5',
+          reason: 'Resource ARNs are not generated at the time of policy creation'
+        }
+      ]
+    );
+
+    const proxyDrmResourceLambda = new lambda.Function(this, 'ProxyDrmResource', {
+      runtime: lambda.Runtime.NODEJS_22_X,
+      handler: 'index.handler',
+      description: 'Proxy DRM SPEKE to integrate with API Gateway',
+      environment: {
+        SOLUTION_IDENTIFIER: `AwsSolution/${solutionId}/%%VERSION%%`,
+        DYNAMO_DB_TABLE: `${cdk.Aws.STACK_NAME}-key`,
+        SPEKE_AUTH_HEADER: authDRMProvider.valueAsString,
+        SPEKE_URL: urlDRMProvider.valueAsString,
+        SPEKE_VERSION: spekeVersion.valueAsString
+      },
+      functionName: `${cdk.Aws.STACK_NAME}-proxy-drm`,
+      role: proxyDrmResourceRole,
+      code: lambda.Code.fromAsset('../proxy-drm'),
+      timeout: cdk.Duration.seconds(120)
+    });
+    proxyDrmResourceLambda.node.addDependency(proxyDrmResourceRole);
+    proxyDrmResourceLambda.node.addDependency(proxyDrmResourcePolicy);
+
+    /**
      * Custom Resource lambda, role, and policy.
      * Creates custom resources
      */
@@ -589,6 +692,10 @@ export class VideoOnDemand extends cdk.Stack {
         new iam.PolicyStatement({
           resources: [mediaPackageVodRole.roleArn],
           actions: ['iam:PassRole']
+        }),
+        new iam.PolicyStatement({
+          resources: [proxyDrmResourceLambda.functionArn],
+          actions: ['lambda:AddPermission']
         })
       ]
     });
@@ -700,11 +807,10 @@ export class VideoOnDemand extends cdk.Stack {
       properties: {
         Resource: 'ApiGatewayDRMProvider',
         StackName: cdk.Aws.STACK_NAME,
-        EndpointDRM: urlDRMProvider.valueAsString,
-        TenantIdDRM: tenantIdDRMProvider.valueAsString,
-        KeyServiceManagementKeyDRM: keyServiceManagementKeyDRMProvider.valueAsString,
-        EnableSpekeV2: cdk.Fn.conditionIf(conditionEnableSpekeV2.logicalId, 'true', 'false'),
         Region: cdk.Aws.REGION,
+        AccountId: cdk.Aws.ACCOUNT_ID,
+        LambdaFunctionName: proxyDrmResourceLambda.functionName,
+        LambdaFunctionArn: proxyDrmResourceLambda.functionArn,
         ApiGatewayName: concatTimestamp('DrmProxyApi'),
         EnableApiGatewayDRM: cdk.Fn.conditionIf(conditionEnableApiGatewayDRM.logicalId, 'true', 'false')
       }
@@ -722,6 +828,7 @@ export class VideoOnDemand extends cdk.Stack {
         PackagingConfigurations: 'HLS,DASH,MSS,CMAF',
         DistributionId: distribution.cloudFrontWebDistribution.distributionId,
         EnableMediaPackage: cdk.Fn.conditionIf(conditionEnableMediaPackage.logicalId, 'true', 'false'),
+        EnableSpekeV2: cdk.Fn.conditionIf(conditionEnableSpekeV2.logicalId, 'true', 'false'),
         MediaPackageVodRole: mediaPackageVodRole.roleArn,
         UrlApiGatewayDRMProvider: apiGatewayToDRMProvider.getAttString('EndpointApiGatewayUrl')
       }
@@ -825,7 +932,7 @@ export class VideoOnDemand extends cdk.Stack {
 
 
     /**
-     * DynamoDB Table
+     * DynamoDB Table to store workflow
      */
     const dynamoDBTable = new dynamodb.Table(this, 'DynamoDBTable', {
       partitionKey: {
@@ -868,6 +975,7 @@ export class VideoOnDemand extends cdk.Stack {
         ]
       }
     };
+
 
     /**
      * Error Handler role and lambda
@@ -1200,6 +1308,10 @@ export class VideoOnDemand extends cdk.Stack {
           actions: ['dynamodb:UpdateItem']
         }),
         new iam.PolicyStatement({
+          resources: [dynamoDBTableSpeke.tableArn],
+          actions: ['dynamodb:GetItem']
+        }),
+        new iam.PolicyStatement({
           resources: [errorHandlerLambda.functionArn],
           actions: ['lambda:InvokeFunction']
         }),
@@ -1247,7 +1359,8 @@ export class VideoOnDemand extends cdk.Stack {
         SOLUTION_IDENTIFIER: `AwsSolution/${solutionId}/%%VERSION%%`,
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
         ErrorHandler: errorHandlerLambda.functionArn,
-        DynamoDBTable: dynamoDBTable.tableName
+        DynamoDBTable: dynamoDBTable.tableName,
+        DynamoDBTableSpeke: dynamoDBTableSpeke.tableName,
       },
       role: dynamoUpdateRole,
       code: lambda.Code.fromAsset('../dynamo'),
