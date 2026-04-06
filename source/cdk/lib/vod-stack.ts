@@ -99,7 +99,12 @@ export class VideoOnDemand extends cdk.Stack {
     });
     const urlDRMProvider = new cdk.CfnParameter(this, 'UrlDRMProvider', {
       type: 'String',
-      description: 'URL DRM provider to get key encryption',
+      description: 'SPEKE v1 URL DRM provider to get key encryption',
+      allowedPattern: '^https?:\/\/.*'
+    });
+    const urlDRMProviderSecond = new cdk.CfnParameter(this, 'UrlDRMProviderSecond', {
+      type: 'String',
+      description: 'SPEKE v2 URL DRM provider to get key encryption',
       allowedPattern: '^https?:\/\/.*'
     });
     const authDRMProvider = new cdk.CfnParameter(this, 'AuthDRMProvider', {
@@ -145,6 +150,7 @@ export class VideoOnDemand extends cdk.Stack {
             Parameters: [
               enableApiGatewayDRM.logicalId,
               urlDRMProvider.logicalId,
+              urlDRMProviderSecond.logicalId,
               authDRMProvider.logicalId,
               spekeVersion.logicalId
             ]
@@ -182,7 +188,10 @@ export class VideoOnDemand extends cdk.Stack {
             default: 'Speke Version'
           },
           UrlDRMProvider: {
-            default: 'URL DRM Provider'
+            default: 'SPEKE v1 URL DRM Provider'
+          },
+          UrlDRMProviderSecond: {
+            default: 'SPEKE v2 URL DRM Provider'
           },
           AuthDRMProvider: {
             default: 'Authorization Key DRM Provider'
@@ -600,8 +609,8 @@ export class VideoOnDemand extends cdk.Stack {
         SOLUTION_IDENTIFIER: `AwsSolution/${solutionId}/%%VERSION%%`,
         DYNAMO_DB_TABLE: `${cdk.Aws.STACK_NAME}-key`,
         SPEKE_AUTH_HEADER: authDRMProvider.valueAsString,
-        SPEKE_URL: urlDRMProvider.valueAsString,
-        SPEKE_VERSION: spekeVersion.valueAsString
+        SPEKE_URL_1: urlDRMProvider.valueAsString,
+        SPEKE_URL_2: urlDRMProviderSecond.valueAsString
       },
       functionName: `${cdk.Aws.STACK_NAME}-proxy-drm`,
       role: proxyDrmResourceRole,
@@ -1306,10 +1315,6 @@ export class VideoOnDemand extends cdk.Stack {
         new iam.PolicyStatement({
           resources: [dynamoDBTable.tableArn],
           actions: ['dynamodb:UpdateItem']
-        }),
-        new iam.PolicyStatement({
-          resources: [dynamoDBTableSpeke.tableArn],
-          actions: ['dynamodb:GetItem']
         }),
         new iam.PolicyStatement({
           resources: [errorHandlerLambda.functionArn],

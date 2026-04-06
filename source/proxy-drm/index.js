@@ -8,14 +8,22 @@ exports.handler = async (event, context) => {
         const requestBody = event.body;
         const kidSet = new Set();
         const resourceIdSet = new Set();
+        let versionSpeke = "1"; //default SPEKE v1
 
         // Parse XML
         const doc = new DOMParser().parseFromString(requestBody, "text/xml");
+        const cpixElements = doc.getElementsByTagName("cpix:CPIX");
+
+        //Extract version SPEKE
+        for (let i = 0; i < cpixElements.length; i++) {
+            versionSpeke = cpixElements[i]?.getAttribute("version") ?? "1";
+            versionSpeke = versionSpeke[0];
+            console.log("SPEKE Version:", versionSpeke);
+        }
 
         // Extract resourceId
-        const cpixElements = doc.getElementsByTagName("cpix:CPIX");
         for (let i = 0; i < cpixElements.length; i++) {
-            if (process.env.SPEKE_VERSION === "2") {
+            if (versionSpeke === "2") {
                 resourceIdSet.add(cpixElements[i].getAttribute("contentId"));
             } else {
                 resourceIdSet.add(cpixElements[i].getAttribute("id"));
@@ -31,21 +39,26 @@ exports.handler = async (event, context) => {
         }
 
         // SPEKE endpoint
-        const spekeEndpoint = process.env.SPEKE_URL;
+        const spekeEndpoint = versionSpeke === "2" ? process.env.SPEKE_URL_2 : process.env.SPEKE_URL_1;
         const authorizationHeader = `Basic ${process.env.SPEKE_AUTH_HEADER}`; // Basic base64("TenantID:ManagementKey")
 
         let headers = {
             "Authorization": authorizationHeader,
             "Content-Type": "text/xml",
-            "X-Speke-Version": `${process.env.SPEKE_VERSION}.0`
+            "X-Speke-Version": `${versionSpeke}.0`
         };
 
-        console.log(`SPEKE_VERSION:: ${process.env.SPEKE_VERSION}`);
-
         // Store Key Id and Content Id to DynamoDB
-        const extractedContentKey = {
-            contentKey: {
-                contentId: [...resourceIdSet][0],
+        let updateExpressionCmd = "";
+        let contentKey = {};
+        if (versionSpeke === "2") {
+            updateExpressionCmd = "set contentKeySpekeV2 = :1";
+            contentKey = {
+                kid: [...kidSet]
+            }
+        } else {
+            updateExpressionCmd = "set contentKeySpekeV1 = :1";
+            contentKey = {
                 kid: [...kidSet]
             }
         }
@@ -58,16 +71,16 @@ exports.handler = async (event, context) => {
         let params = {
             TableName: process.env.DYNAMO_DB_TABLE,
             Key: {
-                resourceId: extractedContentKey.contentKey.contentId,
+                resourceId: [...resourceIdSet][0],
             },
-            UpdateExpression: 'set contentKey = :1',
-            ExpressionAttributeValues: { ":1": extractedContentKey.contentKey }
+            UpdateExpression: updateExpressionCmd,
+            ExpressionAttributeValues: { ":1": contentKey }
         };
 
         console.log(`WRITE_DYNAMODB:: ${JSON.stringify(params)}`);
         await dynamo.update(params);
 
-        console.log(`EXTRACTED_CONTENT_KEY:: ${JSON.stringify(extractedContentKey)}`);
+        console.log(`EXTRACTED_CONTENT_KEY:: ${JSON.stringify(contentKey)}`);
 
 
         // POST request
