@@ -12,6 +12,7 @@
 **/*.egg-info
 **/*.pyc
 **/pypackage
+.python-version
 
 # dependencies
 **/node_modules

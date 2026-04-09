@@ -19,10 +19,66 @@ const DEFAULT_SEGMENT_LENGTH = 6;
 const DEFAULT_PROGRAM_DATETIME_INTERVAL = 60;
 const DEFAULT_MANIFEST_NAME = 'index';
 
-const getHlsParameters = (groupId, configId) => ({
+const getDrmEncryption = (configType, urlApiGatewayDRMProvider, enableSpekeV2, roleArnMediaPackage) => {
+    let listSystemId = [];
+    
+    const encryptionContract = {
+        PresetSpeke20Audio: "PRESET-AUDIO-1",
+        PresetSpeke20Video: "PRESET-VIDEO-1"
+    }
+
+    let configDrmEncryption = {
+        SpekeKeyProvider: {
+            SystemIds: [],
+            Url: urlApiGatewayDRMProvider,
+            RoleArn: roleArnMediaPackage
+        }
+    };
+
+    switch(configType) {
+        case 'hls':
+            configDrmEncryption.EncryptionMethod = "SAMPLE_AES";
+            listSystemId = [
+                "94ce86fb-07ff-4f43-adb8-93d2fa968ca2"  // FairPlay
+            ];
+            break;
+        case 'dash':
+            listSystemId = [
+                "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", // Widevine
+                "9a04f079-9840-4286-ab92-e65be0885f95" // PlayReady
+            ];
+            break;
+        case 'mss':
+            listSystemId = [
+                "9a04f079-9840-4286-ab92-e65be0885f95" // PlayReady
+            ];
+            break;
+        case 'cmaf':
+            listSystemId = [
+                "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed", // Widevine
+                "9a04f079-9840-4286-ab92-e65be0885f95", // PlayReady
+                "94ce86fb-07ff-4f43-adb8-93d2fa968ca2"  // FairPlay
+            ];
+            break;
+        default:
+            console.log(`Unknown packaging configuration: ${config}`);
+            break;
+    }
+
+    if (enableSpekeV2 == 'true') {
+        configDrmEncryption.SpekeKeyProvider.EncryptionContractConfiguration = encryptionContract;
+    }
+
+    configDrmEncryption.SpekeKeyProvider.SystemIds = listSystemId;
+
+    return configDrmEncryption;
+};
+
+const getHlsParameters = (urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     HlsPackage: {
+        Encryption: getDrmEncryption('hls', urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole),
         HlsManifests: [{
             AdMarkers: 'SCTE35_ENHANCED',
             IncludeIframeOnlyStream: false,
@@ -35,10 +91,11 @@ const getHlsParameters = (groupId, configId) => ({
     }
 });
 
-const getDashParameters = (groupId, configId) => ({
+const getDashParameters = (urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     DashPackage: {
+        Encryption: getDrmEncryption('dash', urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole),
         DashManifests: [{
             ManifestName: DEFAULT_MANIFEST_NAME,
             MinBufferTimeSeconds: DEFAULT_SEGMENT_LENGTH * 3,
@@ -48,10 +105,11 @@ const getDashParameters = (groupId, configId) => ({
     }
 });
 
-const getMssParameters = (groupId, configId) => ({
+const getMssParameters = (urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     MssPackage: {
+        Encryption: getDrmEncryption('mss', urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole),
         MssManifests: [{
             ManifestName: DEFAULT_MANIFEST_NAME
         }],
@@ -59,10 +117,11 @@ const getMssParameters = (groupId, configId) => ({
     }
 });
 
-const getCmafParameters = (groupId, configId) => ({
+const getCmafParameters = (urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole, groupId, configId) => ({
     Id: configId,
     PackagingGroupId: groupId,
     CmafPackage: {
+        Encryption: getDrmEncryption('cmaf', urlApiGatewayDRMProvider, enableSpekeV2, mediaPackageVodRole),
         HlsManifests: [{
             AdMarkers: 'SCTE35_ENHANCED',
             IncludeIframeOnlyStream: false,
@@ -92,19 +151,19 @@ const create = async (properties) => {
 
         switch (config.toLowerCase()) {
             case 'hls':
-                params = getHlsParameters(packagingGroup.Id, `packaging-config-${randomId}-hls`);
+                params = getHlsParameters(properties.UrlApiGatewayDRMProvider, properties.EnableSpekeV2, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-hls`);
                 break;
 
             case 'dash':
-                params = getDashParameters(packagingGroup.Id, `packaging-config-${randomId}-dash`);
+                params = getDashParameters(properties.UrlApiGatewayDRMProvider, properties.EnableSpekeV2, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-dash`);
                 break;
 
             case 'mss':
-                params = getMssParameters(packagingGroup.Id, `packaging-config-${randomId}-mss`);
+                params = getMssParameters(properties.UrlApiGatewayDRMProvider, properties.EnableSpekeV2, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-mss`);
                 break;
 
             case 'cmaf':
-                params = getCmafParameters(packagingGroup.Id, `packaging-config-${randomId}-cmaf`);
+                params = getCmafParameters(properties.UrlApiGatewayDRMProvider, properties.EnableSpekeV2, properties.MediaPackageVodRole, packagingGroup.Id, `packaging-config-${randomId}-cmaf`);
                 break;
 
             default:

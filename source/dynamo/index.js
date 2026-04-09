@@ -50,7 +50,7 @@ exports.handler = async (event) => {
 
         console.log(`UPDATE:: ${JSON.stringify(params, null, 2)}`);
         await dynamo.update(params);
-
+        
         // Get updated data and reconst event data to return
         event.guid = guid;
     } catch (err) {
