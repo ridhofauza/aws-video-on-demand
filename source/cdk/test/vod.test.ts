@@ -23,12 +23,7 @@ expect.addSnapshotSerializer({
             {
                 regex: /([A-Fa-f0-9]{64}).zip/,
                 replacementValue: '[HASH REMOVED].zip'
-            },
-            {
-                // Replace DrmProxyApi timestamp
-                regex: /(DrmProxyApi[^\d]*)(\d{8,14})/g,
-                replacementValue: '$1[TIMESTAMP]'
-            },
+            }
         ];
 
         return `${valueReplacements.reduce(

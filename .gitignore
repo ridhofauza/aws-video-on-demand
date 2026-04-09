@@ -12,7 +12,6 @@
 **/*.egg-info
 **/*.pyc
 **/pypackage
-.python-version
 
 # dependencies
 **/node_modules
@@ -33,3 +32,8 @@ codescan-unified-default.sh
 **/source/test
 **source/**/.coverage
 **source/**/coverage
+
+# Kiro IDE
+.kiro/
+
+*.Identifier

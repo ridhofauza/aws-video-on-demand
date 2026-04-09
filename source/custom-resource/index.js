@@ -17,7 +17,6 @@ const Metrics = require('./lib/metrics');
 const S3 = require('./lib/s3');
 const MediaConvert = require('./lib/mediaconvert');
 const MediaPackage = require('./lib/mediapackage');
-const ApiGateway = require('./lib/apigateway');
 
 exports.handler = async (event, context) => {
     console.log(`REQUEST:: ${JSON.stringify(event, null, 2)}`);
@@ -64,14 +63,6 @@ exports.handler = async (event, context) => {
                         };
                     }
                     break;
-                
-                case 'ApiGatewayDRMProvider':
-                    if (config.EnableApiGatewayDRM === 'true') {
-                        responseData = await ApiGateway.createEndpointDRMProvider(config);
-                    } else {
-                        responseData = { EndpointApiGatewayUrl: '' };
-                    }
-                    break;
 
                 default:
                     console.log(config.Resource, ': not defined as a custom resource, sending success response');
@@ -103,15 +94,6 @@ exports.handler = async (event, context) => {
                         };
                     }
                     break;
-                    
-                case 'ApiGatewayDRMProvider':
-                    if (config.EnableApiGatewayDRM === 'true') {
-                        responseData = await ApiGateway.createEndpointDRMProvider(config);
-                    } else {
-                        responseData = { EndpointApiGatewayUrl: '' };
-                    }
-                    break;
-
                 default:
                     console.log(config.Resource, ': update not supported, sending success response');
             }
@@ -131,12 +113,6 @@ exports.handler = async (event, context) => {
                         responseData = {
                             GroupId: null
                         };
-                    }
-                    break;
-
-                case 'ApiGatewayDRMProvider':
-                    if (config.EnableApiGatewayDRM === 'true') {
-                        await ApiGateway.deleteEndpointDRMProvider(config);
                     }
                     break;
 

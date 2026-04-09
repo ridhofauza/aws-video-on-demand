@@ -3,14 +3,6 @@
 exports[`VideoOnDemand Stack Test 1`] = `
 {
   Conditions: {
-    EnableApiGatewayDRMCondition: {
-      Fn::Equals: [
-        {
-          Ref: EnableApiGatewayDRM,
-        },
-        Yes,
-      ],
-    },
     EnableMediaPackageCondition: {
       Fn::Equals: [
         {
@@ -25,14 +17,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
           Ref: EnableSns,
         },
         Yes,
-      ],
-    },
-    EnableSpekeV2Condition: {
-      Fn::Equals: [
-        {
-          Ref: SpekeVersion,
-        },
-        2,
       ],
     },
     EnableSqsCondition: {
@@ -52,7 +36,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
       ],
     },
   },
-  Description: (SO0021) - Video on Demand on AWS workflow with AWS Step Functions, MediaConvert, MediaPackage, S3, CloudFront and DynamoDB. Version %%VERSION%%,
+  Description: (SO9674) - Video on Demand on AWS workflow with AWS Step Functions, MediaConvert, MediaPackage, S3, CloudFront and DynamoDB. Version %%VERSION%%,
   Mappings: {
     AnonymizedData: {
       SendAnonymizedData: {
@@ -92,17 +76,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
             EnableMediaPackage,
           ],
         },
-        {
-          Label: {
-            default: AWS API Gateway for DRM Provider,
-          },
-          Parameters: [
-            EnableApiGatewayDRM,
-            UrlDRMProvider,
-            AuthDRMProvider,
-            SpekeVersion,
-          ],
-        },
       ],
       ParameterLabels: {
         AcceleratedTranscoding: {
@@ -110,12 +83,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
         },
         AdminEmail: {
           default: Notification email address,
-        },
-        AuthDRMProvider: {
-          default: Authorization Key DRM Provider,
-        },
-        EnableApiGatewayDRM: {
-          default: Enable API Gateway DRM,
         },
         EnableMediaPackage: {
           default: Enable MediaPackage,
@@ -131,12 +98,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
         },
         Glacier: {
           default: Archive source content,
-        },
-        SpekeVersion: {
-          default: Enable Speke V2,
-        },
-        UrlDRMProvider: {
-          default: URL DRM Provider,
         },
         WorkflowTrigger: {
           default: Workflow trigger,
@@ -326,19 +287,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
       Description: Email address for SNS notifications (subscribed users will receive ingest, publishing, and error notifications),
       Type: String,
     },
-    AuthDRMProvider: {
-      Description: Base64 encode of Tenant Id and Key Service Management Key for authorization,
-      Type: String,
-    },
-    EnableApiGatewayDRM: {
-      AllowedValues: [
-        Yes,
-        No,
-      ],
-      Default: Yes,
-      Description: Enable API Gateway for DRM Provider,
-      Type: String,
-    },
     EnableMediaPackage: {
       AllowedValues: [
         Yes,
@@ -385,20 +333,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
       Description: If enabled, source assets will be tagged for archiving to Glacier or Glacier Deep Archive once the workflow is complete,
       Type: String,
     },
-    SpekeVersion: {
-      AllowedValues: [
-        1,
-        2,
-      ],
-      Default: 1,
-      Description: Speke Version,
-      Type: String,
-    },
-    UrlDRMProvider: {
-      AllowedPattern: ^https?://.*,
-      Description: URL DRM provider to get key encryption,
-      Type: String,
-    },
     WorkflowTrigger: {
       AllowedValues: [
         VideoFile,
@@ -436,7 +370,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
             Arn,
           ],
         },
-        SolutionId: SO0021,
+        SolutionId: SO9674,
         Transcoder: MediaConvert,
         UUID: {
           Fn::GetAtt: [
@@ -447,39 +381,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Version: %%VERSION%%,
         WorkflowTrigger: {
           Ref: WorkflowTrigger,
-        },
-      },
-      Type: AWS::CloudFormation::CustomResource,
-      UpdateReplacePolicy: Delete,
-    },
-    ApiGatewayDRMProvider: {
-      DeletionPolicy: Delete,
-      Properties: {
-        AccountId: {
-          Ref: AWS::AccountId,
-        },
-        ApiGatewayName: DrmProxyApi_[TIMESTAMP],
-        LambdaFunctionArn: {
-          Fn::GetAtt: [
-            ProxyDrmResource2898A472,
-            Arn,
-          ],
-        },
-        LambdaFunctionName: {
-          Ref: ProxyDrmResource2898A472,
-        },
-        Region: {
-          Ref: AWS::Region,
-        },
-        Resource: ApiGatewayDRMProvider,
-        ServiceToken: {
-          Fn::GetAtt: [
-            CustomResource8CDCD7A7,
-            Arn,
-          ],
-        },
-        StackName: {
-          Ref: AWS::StackName,
         },
       },
       Type: AWS::CloudFormation::CustomResource,
@@ -533,7 +434,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -558,7 +459,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -684,7 +585,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -816,7 +717,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -895,7 +796,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Description: Used to deploy resources not supported by CloudFormation,
         Environment: {
           Variables: {
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -920,7 +821,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 30,
@@ -1147,36 +1048,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 ],
               },
             },
-            {
-              Action: apigateway:*,
-              Effect: Allow,
-              Resource: {
-                Fn::Join: [
-                  ,
-                  [
-                    arn:,
-                    {
-                      Ref: AWS::Partition,
-                    },
-                    :apigateway:,
-                    {
-                      Ref: AWS::Region,
-                    },
-                    ::/*,
-                  ],
-                ],
-              },
-            },
-            {
-              Action: iam:PassRole,
-              Effect: Allow,
-              Resource: {
-                Fn::GetAtt: [
-                  MediaPackageVodRole931E8163,
-                  Arn,
-                ],
-              },
-            },
           ],
           Version: 2012-10-17,
         },
@@ -1220,7 +1091,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -1279,7 +1150,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         VersioningConfiguration: {
@@ -1463,57 +1334,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
-          },
-        ],
-      },
-      Type: AWS::DynamoDB::Table,
-      UpdateReplacePolicy: Retain,
-    },
-    DynamoDBTableSpekeFD6682D1: {
-      DeletionPolicy: Retain,
-      Metadata: {
-        cfn_nag: {
-          rules_to_suppress: [
-            {
-              id: W74,
-              reason: The DynamoDB table is configured to use the default encryption,
-            },
-          ],
-        },
-      },
-      Properties: {
-        AttributeDefinitions: [
-          {
-            AttributeName: resourceId,
-            AttributeType: S,
-          },
-        ],
-        BillingMode: PAY_PER_REQUEST,
-        KeySchema: [
-          {
-            AttributeName: resourceId,
-            KeyType: HASH,
-          },
-        ],
-        PointInTimeRecoverySpecification: {
-          PointInTimeRecoveryEnabled: true,
-        },
-        TableName: {
-          Fn::Join: [
-            ,
-            [
-              {
-                Ref: AWS::StackName,
-              },
-              -key,
-            ],
-          ],
-        },
-        Tags: [
-          {
-            Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -1571,7 +1392,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -1596,7 +1417,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -1623,16 +1444,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
               Resource: {
                 Fn::GetAtt: [
                   DynamoDBTable59784FC0,
-                  Arn,
-                ],
-              },
-            },
-            {
-              Action: dynamodb:GetItem,
-              Effect: Allow,
-              Resource: {
-                Fn::GetAtt: [
-                  DynamoDBTableSpekeFD6682D1,
                   Arn,
                 ],
               },
@@ -1724,7 +1535,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -1920,7 +1731,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -1945,7 +1756,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -2092,7 +1903,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -2166,10 +1977,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
             DynamoDBTable: {
               Ref: DynamoDBTable59784FC0,
             },
-            DynamoDBTableSpeke: {
-              Ref: DynamoDBTableSpekeFD6682D1,
-            },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
             SnsTopic: {
               Ref: SnsTopic2C1570A4,
             },
@@ -2197,7 +2005,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -2317,7 +2125,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -2407,7 +2215,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -2587,7 +2395,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 },
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
             Source: {
               Ref: Source71E471F1,
             },
@@ -2618,7 +2426,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -2744,7 +2552,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -2805,7 +2613,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         VersioningConfiguration: {
@@ -3000,7 +2808,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3084,7 +2892,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -3109,7 +2917,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -3235,7 +3043,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3307,7 +3115,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -3332,7 +3140,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -3467,7 +3275,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3497,12 +3305,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
             ],
           ],
         },
-        MediaPackageVodRole: {
-          Fn::GetAtt: [
-            MediaPackageVodRole931E8163,
-            Arn,
-          ],
-        },
         PackagingConfigurations: HLS,DASH,MSS,CMAF,
         Resource: MediaPackageVod,
         ServiceToken: {
@@ -3513,12 +3315,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
         },
         StackName: {
           Ref: AWS::StackName,
-        },
-        UrlApiGatewayDRMProvider: {
-          Fn::GetAtt: [
-            ApiGatewayDRMProvider,
-            EndpointApiGatewayUrl,
-          ],
         },
       },
       Type: AWS::CloudFormation::CustomResource,
@@ -3567,33 +3363,6 @@ exports[`VideoOnDemand Stack Test 1`] = `
                   ],
                 },
               ],
-            },
-            {
-              Action: [
-                execute-api:Invoke,
-                execute-api:ManageConnections,
-              ],
-              Effect: Allow,
-              Resource: {
-                Fn::Join: [
-                  ,
-                  [
-                    arn:,
-                    {
-                      Ref: AWS::Partition,
-                    },
-                    :execute-api:,
-                    {
-                      Ref: AWS::Region,
-                    },
-                    :,
-                    {
-                      Ref: AWS::AccountId,
-                    },
-                    :*,
-                  ],
-                ],
-              },
             },
           ],
           Version: 2012-10-17,
@@ -3644,7 +3413,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3707,7 +3476,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -3732,7 +3501,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -3860,7 +3629,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3936,7 +3705,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -3994,7 +3763,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -4019,7 +3788,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -4137,184 +3906,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
-          },
-        ],
-      },
-      Type: AWS::IAM::Role,
-    },
-    ProxyDrmResource2898A472: {
-      DependsOn: [
-        ProxyDrmResourcePolicyBC75E764,
-        ProxyDrmResourceRole8364B24A,
-      ],
-      Properties: {
-        Code: {
-          S3Bucket: {
-            Fn::Sub: cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region},
-          },
-          S3Key: [HASH REMOVED].zip,
-        },
-        Description: Proxy DRM SPEKE to integrate with API Gateway,
-        Environment: {
-          Variables: {
-            DYNAMO_DB_TABLE: {
-              Fn::Join: [
-                ,
-                [
-                  {
-                    Ref: AWS::StackName,
-                  },
-                  -key,
-                ],
-              ],
-            },
-            ENV_CONFIG_TYPE: prod,
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
-            SPEKE_AUTH_HEADER: {
-              Ref: AuthDRMProvider,
-            },
-            SPEKE_URL: {
-              Ref: UrlDRMProvider,
-            },
-            SPEKE_VERSION: {
-              Ref: SpekeVersion,
-            },
-          },
-        },
-        FunctionName: {
-          Fn::Join: [
-            ,
-            [
-              {
-                Ref: AWS::StackName,
-              },
-              -proxy-drm,
-            ],
-          ],
-        },
-        Handler: index.handler,
-        Role: {
-          Fn::GetAtt: [
-            ProxyDrmResourceRole8364B24A,
-            Arn,
-          ],
-        },
-        Runtime: nodejs22.x,
-        Tags: [
-          {
-            Key: SolutionId,
-            Value: SO0021,
-          },
-        ],
-        Timeout: 120,
-      },
-      Type: AWS::Lambda::Function,
-    },
-    ProxyDrmResourcePolicyBC75E764: {
-      Metadata: {
-        cdk_nag: {
-          rules_to_suppress: [
-            {
-              id: AwsSolutions-IAM5,
-              reason: Resource ARNs are not generated at the time of policy creation,
-            },
-          ],
-        },
-        cfn_nag: {
-          rules_to_suppress: [
-            {
-              id: W12,
-              reason: * is required to create CloudWatch logs,
-            },
-          ],
-        },
-      },
-      Properties: {
-        PolicyDocument: {
-          Statement: [
-            {
-              Action: [
-                logs:CreateLogGroup,
-                logs:CreateLogStream,
-                logs:PutLogEvents,
-              ],
-              Effect: Allow,
-              Resource: {
-                Fn::Join: [
-                  ,
-                  [
-                    arn:,
-                    {
-                      Ref: AWS::Partition,
-                    },
-                    :logs:,
-                    {
-                      Ref: AWS::Region,
-                    },
-                    :,
-                    {
-                      Ref: AWS::AccountId,
-                    },
-                    :log-group:/aws/lambda/*,
-                  ],
-                ],
-              },
-            },
-            {
-              Action: dynamodb:UpdateItem,
-              Effect: Allow,
-              Resource: {
-                Fn::GetAtt: [
-                  DynamoDBTableSpekeFD6682D1,
-                  Arn,
-                ],
-              },
-            },
-          ],
-          Version: 2012-10-17,
-        },
-        PolicyName: ProxyDrmResourcePolicyBC75E764,
-        Roles: [
-          {
-            Ref: ProxyDrmResourceRole8364B24A,
-          },
-        ],
-      },
-      Type: AWS::IAM::Policy,
-    },
-    ProxyDrmResourceRole8364B24A: {
-      Metadata: {
-        cfn_nag: {
-          rules_to_suppress: [
-            {
-              id: W11,
-              reason: * is required to create CloudWatch logs,
-            },
-            {
-              id: W76,
-              reason: All policies are required by the proxy DRM resource.,
-            },
-          ],
-        },
-      },
-      Properties: {
-        AssumeRolePolicyDocument: {
-          Statement: [
-            {
-              Action: sts:AssumeRole,
-              Effect: Allow,
-              Principal: {
-                Service: lambda.amazonaws.com,
-              },
-            },
-          ],
-          Version: 2012-10-17,
-        },
-        Tags: [
-          {
-            Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -4418,7 +4010,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -4504,7 +4096,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
             SnsTopic: {
               Ref: SnsTopic2C1570A4,
             },
@@ -4532,7 +4124,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -4652,7 +4244,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -4675,7 +4267,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -4798,7 +4390,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         VersioningConfiguration: {
@@ -4875,7 +4467,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         VisibilityTimeout: 120,
@@ -4912,7 +4504,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         VisibilityTimeout: 120,
@@ -5034,7 +4626,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 Arn,
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
             SqsQueue: {
               Ref: SqsQueue13597403,
             },
@@ -5062,7 +4654,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -5185,7 +4777,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -5311,7 +4903,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
                 ],
               ],
             },
-            SOLUTION_IDENTIFIER: AwsSolution/SO0021/%%VERSION%%,
+            SOLUTION_IDENTIFIER: AwsSolution/SO9674/%%VERSION%%,
           },
         },
         FunctionName: {
@@ -5336,7 +4928,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
         Timeout: 120,
@@ -5565,7 +5157,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
@@ -5669,7 +5261,7 @@ exports[`VideoOnDemand Stack Test 1`] = `
         Tags: [
           {
             Key: SolutionId,
-            Value: SO0021,
+            Value: SO9674,
           },
         ],
       },
